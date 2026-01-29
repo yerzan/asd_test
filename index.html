@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Egzamin Algorytmy - Symulator</title>
+    <style>
+        body {
+            background-color: #131314;
+            color: #e3e3e3;
+            font-family: 'Google Sans', Roboto, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+        }
+
+        /* Pasek postępu i nagłówek */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            font-size: 14px;
+            color: #9aa0a6;
+        }
+
+        .progress-bar {
+            flex-grow: 1;
+            height: 4px;
+            background-color: #303134;
+            border-radius: 2px;
+            margin-right: 20px;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #8ab4f8;
+            width: 0%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .score-badge {
+            background-color: #1e1f20;
+            padding: 4px 12px;
+            border-radius: 16px;
+            display: flex;
+            gap: 10px;
+            font-weight: bold;
+        }
+        .score-correct { color: #81c995; }
+        .score-wrong { color: #f28b82; }
+
+        /* Pytanie */
+        .question-text {
+            font-size: 20px;
+            line-height: 1.5;
+            margin-bottom: 40px;
+            font-weight: 500;
+        }
+
+        .category-label {
+            color: #8ab4f8;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        /* Odpowiedzi */
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-btn {
+            background-color: #1e1f20;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            padding: 16px 24px;
+            color: #e3e3e3;
+            text-align: left;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .option-btn:hover {
+            background-color: #303134;
+        }
+
+        .option-letter {
+            font-weight: bold;
+            margin-right: 16px;
+            color: #9aa0a6;
+        }
+
+        /* Stany odpowiedzi */
+        .option-btn.correct {
+            background-color: #132a1c; /* Ciemny zielony */
+            border-color: #81c995;
+            color: #81c995;
+        }
+        
+        .option-btn.wrong {
+            background-color: #3c1e1e; /* Ciemny czerwony */
+            border-color: #f28b82;
+            color: #f28b82;
+        }
+        
+        .option-btn.disabled {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        /* Przycisk Dalej */
+        .next-btn-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+
+        .next-btn {
+            background-color: #8ab4f8;
+            color: #202124;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            display: none; /* Ukryty dopóki nie odpowiesz */
+        }
+
+        .next-btn:hover {
+            background-color: #aecbfa;
+        }
+
+        /* Ekran końcowy */
+        .results {
+            text-align: center;
+            display: none;
+        }
+        .results h1 { font-size: 32px; margin-bottom: 20px; }
+        .result-item { margin: 10px 0; font-size: 18px; color: #9aa0a6; }
+        .pass { color: #81c995; font-weight: bold; }
+        .fail { color: #f28b82; font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+<div class="container" id="quiz-container">
+    <div class="header">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+        <div id="counter">1 / 36</div>
+        <div class="score-badge" style="margin-left: 15px;">
+            <span class="score-wrong">✕ <span id="wrong-count">0</span></span>
+            <span class="score-correct">✔ <span id="correct-count">0</span></span>
+        </div>
+    </div>
+
+    <span class="category-label" id="category-label">Efekt W1 - Podstawy</span>
+    <div class="question-text" id="question-text">
+        Ładowanie pytania...
+    </div>
+
+    <div class="options-grid" id="options-container">
+        </div>
+
+    <div class="next-btn-container">
+        <button class="next-btn" id="next-btn" onclick="nextQuestion()">Dalej</button>
+    </div>
+</div>
+
+<div class="container results" id="results-screen">
+    <h1>Wyniki Egzaminu</h1>
+    <div id="results-details"></div>
+    <button class="next-btn" style="display:inline-block; margin-top:20px;" onclick="location.reload()">Spróbuj ponownie</button>
+</div>
+
+<script>
+    // Baza pytań (wszystkie 36 z Twoich zdjęć)
+    const questions = [
+
+    /* ===================== W1 ===================== */
+
+    {
+    cat:"W1",
+    q:"1. (W1/3) Jeśli funkcja kosztu czasowego pewnego algorytmu rekurencyjnego jest wyrażona za pomocą następującego równania rekurencyjnego: C(n) = C(n/2) + 1 dla n > 1 (gdzie n to rozmiar charakterystyczny zadania), to złożoność obliczeniowa czasowa tego algorytmu jest rzędu:",
+    options:["A. Θ(1)","B. Θ(n)","C. Θ(log n)","D. Θ(n·log n)"],
+    correct:2
+    },
+
+    {
+    cat:"W1",
+    q:"2. (W1/3) Jeśli złożoności obliczeniowe 3 algorytmów są odpowiednio rzędu: Θ(n²), Θ(log n), Θ(2^n), to są to algorytmy:",
+    options:[
+    "A. wielomianowy, logarytmiczny, potęgowy",
+    "B. kwadratowy, logarytmiczny, dwójkowy",
+    "C. kwadratowy, logarytmiczny, liniowy",
+    "D. żadna z odpowiedzi nie jest do końca prawdziwa"
+    ],
+    correct:1
+    },
+
+    {
+    cat:"W1",
+    q:"3. (W1/3) Klasa problemów z punktu widzenia złożoności obliczeniowej zawierająca problemy decyzyjne, dla których nie jest znany algorytm rozwiązujący problem w czasie wielomianowym oraz dowolny problem należący do NP może być do niego zredukowany w czasie wielomianowym nazywa się:",
+    options:[
+    "A. klasą P problemów",
+    "B. klasą NP problemów",
+    "C. klasą problemów NP-trudnych",
+    "D. klasą problemów NP-zupełnych"
+    ],
+    correct:3
+    },
+
+    {
+    cat:"W1",
+    q:"4. (W1/4) Które z poniższych uszeregowań rzędów złożoności obliczeniowej czasowej od najmniej efektywnych do najbardziej efektywnych czasowo jest poprawne:",
+    options:[
+    "A. O(n²), O(log n), O(2^n)",
+    "B. O(2^n), O(n²), O(n log n)",
+    "C. O(n²), O(log n), O(1)",
+    "D. O(n²), O(n), O(n log n)"
+    ],
+    correct:2
+    },
+
+    {
+    cat:"W1",
+    q:"5. (W1/4) Który z poniższych zestawów inkluzji jest w pełni niepoprawny:",
+    options:[
+    "A. NP ⊂ P-SPACE, NP-zupełne ⊂ NP-trudne, P ⊂ NP-trudne",
+    "B. P ⊂ NP, NP-zupełne ⊂ NP, NP-SPACE ⊂ P-SPACE",
+    "C. NP ⊂ P, NP ⊂ NP-zupełne, P-SPACE ⊂ P",
+    "D. P-SPACE ⊂ P, NP-trudne ⊂ NP-zupełne, NP ⊂ NP-trudne"
+    ],
+    correct:2
+    },
+
+    {
+    cat:"W1",
+    q:"6. (W1/4) Które z podanych równań rekurencyjnych można traktować jako reprezentację złożoności obliczeniowej czasowej algorytmu z rekurencją prostą?\n\nR1: C(n)=2·C(n/3)+1\nR2: f(n)=2·f(n−1)+1\nR3: C(n)=C(n/2)+n+2",
+    options:[
+    "A. tylko równanie R2",
+    "B. tylko równanie R3",
+    "C. równania R2 i R3",
+    "D. żadne"
+    ],
+    correct:0
+    },
+
+    {
+    cat:"W1",
+    q:"7. (W1/5) Czy w przypadku algorytmu rekurencyjnego przeszukiwania tablicy uporządkowanej celem znalezienia elementu jest sens wykorzystywać rekurencję rozgałęzioną?",
+    options:[
+    "A. tak, bo warto podzielić tablicę na części i szukać w obu",
+    "B. nie, wystarczy szukać tylko w jednej części",
+    "C. wybór nie ma znaczenia",
+    "D. trudno porównać"
+    ],
+    correct:1
+    },
+
+    {
+    cat:"W1",
+    q:"8. (W1/5) Jeśli algorytm ma wykładniczą złożoność obliczeniową, co zrobić aby rozwiązywać duże problemy?",
+    options:[
+    "A. zaimplementować i uruchomić",
+    "B. użyć szybszego procesora",
+    "C. użyć większej liczby rdzeni",
+    "D. żadna z powyższych możliwości nie jest do końca prawdziwa"
+    ],
+    correct:3
+    },
+
+    {
+    cat:"W1",
+    q:"9. (W1/5) Jeśli algorytm weryfikuje poprawność rozwiązania w pamięci ograniczonej wielomianowo, czy istnieje algorytm rozwiązujący problem w pamięci wielomianowej?",
+    options:[
+    "A. tak i mówi o tym twierdzenie Savitcha",
+    "B. tak i mówi o tym twierdzenie Cooka",
+    "C. nie zawsze",
+    "D. trudno powiedzieć"
+    ],
+    correct:0
+    },
+
+    /********************* W2 *********************/
+
+    {
+    cat:"W2",
+    q:"10. (W2/3) Podaj rzędy złożoności obliczeniowej następujących operacji: wstawiania do zrównoważonego drzewa binarnego, wyszukiwania w tablicy dynamicznej uporządkowanej, usuwania z tablicy mieszającej:",
+    options:[
+    "A. Θ(log n), Θ(log n), Θ(1)",
+    "B. Θ(1), Θ(n), Θ(n)",
+    "C. Θ(n), Θ(log n), Θ(1)",
+    "D. Θ(log n), Θ(n), Θ(1)"
+    ],
+    correct:0
+    },
+
+    {
+    cat:"W2",
+    q:"11. (W2/3) Strukturą konkretną nadającą się w sposób naturalny do implementacji abstrakcyjnej listy jest:",
+    options:[
+    "A. tablica dynamiczna",
+    "B. tablica mieszająca",
+    "C. drzewo binarne",
+    "D. lista powiązana"
+    ],
+    correct:3
+    },
+
+    {
+    cat:"W2",
+    q:"12. (W2/3) Metoda reprezentacji grafów polegająca na budowie macierzy kwadratowej zawierającej informacje o krawędziach między wierzchołkami nazywa się:",
+    options:[
+    "A. metodą sąsiadów",
+    "B. metodą sąsiedztwa",
+    "C. metodą listy sąsiedztwa",
+    "D. żadna z wymienionych"
+    ],
+    correct:3
+    },
+
+    {
+    cat:"W2",
+    q:"13. (W2/4) Która z poniższych implementacji zbioru będzie miała najszybszą operację usuwania elementu?",
+    options:[
+    "A. za pomocą tablicy dynamicznej",
+    "B. za pomocą uporządkowanej tablicy dynamicznej",
+    "C. za pomocą zrównoważonego drzewa binarnego",
+    "D. za pomocą listy powiązanej"
+    ],
+    correct:3
+    },
+
+    {
+    cat:"W2",
+    q:"14. (W2/4) Która z poniższych implementacji zbioru będzie miała najwolniejszą operację wyszukiwania elementów?",
+    options:[
+    "A. za pomocą tablicy dynamicznej",
+    "B. za pomocą uporządkowanej tablicy dynamicznej",
+    "C. za pomocą zrównoważonego drzewa binarnego",
+    "D. za pomocą tablicy mieszającej"
+    ],
+    correct:0
+    },
+
+    {
+    cat:"W2",
+    q:"15. (W2/4) Która z poniższych implementacji zbioru będzie miała najwolniejszą operację wstawiania elementów?",
+    options:[
+    "A. za pomocą tablicy dynamicznej",
+    "B. za pomocą uporządkowanej listy powiązanej",
+    "C. za pomocą zrównoważonego drzewa binarnego",
+    "D. za pomocą tablicy mieszającej"
+    ],
+    correct:1
+    },
+
+    {
+    cat:"W2",
+    q:"16. (W2/5) Jeśli potrzeba struktury o możliwie szybkim wstawianiu i oszczędności pamięci, a szybkość wyszukiwania i usuwania nie jest istotna, zalecane jest użycie:",
+    options:[
+    "A. tablicy dynamicznej",
+    "B. listy powiązanej",
+    "C. tablicy mieszającej",
+    "D. drzewa binarnego"
+    ],
+    correct:1
+    },
+
+    {
+    cat:"W2",
+    q:"17. (W2/5) Jeśli potrzeba struktury oszczędnej pamięciowo i uporządkowanej wewnętrznie, a szybkość operacji nie jest istotna, zalecane jest użycie:",
+    options:[
+    "A. tablicy dynamicznej uporządkowanej",
+    "B. listy powiązanej uporządkowanej",
+    "C. tablicy mieszającej",
+    "D. drzewa binarnego"
+    ],
+    correct:0
+    },
+
+    {
+    cat:"W2",
+    q:"18. (W2/5) Jeśli potrzeba struktury o szybkim wyszukiwaniu i wstawianiu, a pozostałe cechy nie są istotne, zalecane jest użycie:",
+    options:[
+    "A. tablicy dynamicznej",
+    "B. listy powiązanej",
+    "C. tablicy mieszającej",
+    "D. drzewa binarnego"
+    ],
+    correct:2
+    },
+
+    /********************* W3 *********************/
+
+    {
+    cat:"W3",
+    q:"19. (W3/3) Metoda sortowania przez wybór elementów w tablicy n-elementowej jest metodą:",
+    options:[
+    "A. dokładną",
+    "B. aproksymacyjną",
+    "C. dokładną i aproksymacyjną",
+    "D. trudno powiedzieć"
+    ],
+    correct:0
+    },
+
+    {
+    cat:"W3",
+    q:"20. (W3/3) Metoda sortowania polegająca na podzieleniu tablicy na dwie części, rekurencyjnym sortowaniu oraz scaleniu wyników to:",
+    options:[
+    "A. bąbelkowa",
+    "B. przez wybór",
+    "C. przez wstawianie",
+    "D. żadna z wymienionych"
+    ],
+    correct:3
+    },
+
+    {
+    cat:"W3",
+    q:"21. (W3/3) Metoda przeszukiwania grafu polegająca na odwiedzaniu wierzchołków warstwami to:",
+    options:[
+    "A. przeszukiwanie grafu wszerz",
+    "B. przeszukiwanie grafu w głąb",
+    "C. programowanie dynamiczne",
+    "D. żadna z wymienionych"
+    ],
+    correct:0
+    },
+
+    {
+    cat:"W3",
+    q:"22. (W3/4) Zgodnie z dolnym ograniczeniem pesymistycznego czasu sortowania algorytm optymalny ma złożoność:",
+    options:[
+    "A. przez scalanie",
+    "B. przez wybór",
+    "C. przez wstawianie",
+    "D. żaden z wymienionych"
+    ],
+    correct:0
+    },
+
+    {
+    cat:"W3",
+    q:"23. (W3/4) Które stwierdzenie dotyczące metod konstrukcji algorytmów jest fałszywe:",
+    options:[
+    "A. jeśli algorytm zachłanny nie jest efektywny, można stosować Monte Carlo",
+    "B. metoda błądzenia losowego jest rodzajem Monte Carlo",
+    "C. oprócz brutalnej siły żadna metoda nie znajduje tak dokładnych rozwiązań",
+    "D. programowanie dynamiczne jest odmianą dziel i zwyciężaj"
+    ],
+    correct:2
+    },
+
+    {
+    cat:"W3",
+    q:"24. (W3/4) Aby rozmiar zbioru wierzchołków miał minimalny wpływ na pamięć przy BFS, używamy:",
+    options:[
+    "A. listy sąsiedztwa",
+    "B. macierzy sąsiedztwa",
+    "C. obu tak samo",
+    "D. nie ma wpływu"
+    ],
+    correct:0
+    },
+
+    {
+    cat:"W3",
+    q:"25. (W3/5) Gdy przestrzeń stanów jest bardzo duża, a nie zależy nam na rozwiązaniu dokładnym, stosujemy:",
+    options:[
+    "A. metodę brutalnej siły",
+    "B. metodę Monte Carlo",
+    "C. metodę dziel i zwyciężaj",
+    "D. żadna z wymienionych"
+    ],
+    correct:1
+    },
+
+    {
+    cat:"W3",
+    q:"26. (W3/5) Jeśli problem komiwojażera dotyczy 10000 miast, której metody nie można użyć?",
+    options:[
+    "A. przeszukiwania z nawrotami",
+    "B. algorytmu zachłannego",
+    "C. metody Monte Carlo",
+    "D. brutalnej siły"
+    ],
+    correct:3
+    },
+
+    {
+    cat:"W3",
+    q:"27. (W3/5) Jeśli sortujemy liczby całkowite z przedziału 0..k−1, najlepszą metodą będzie:",
+    options:[
+    "A. sortowanie przez wybór",
+    "B. sortowanie przez zliczanie",
+    "C. sortowanie przez scalanie",
+    "D. szybkie sortowanie"
+    ],
+    correct:1
+    },
+
+    /********************* W4 *********************/
+
+    {
+    cat:"W4",
+    q:"28. (W4/3) Która z poniższych metod jest metodą dowodzenia częściowej poprawności algorytmów:",
+    options:[
+    "A. metoda liczników iteracji",
+    "B. metoda malejących wielkości",
+    "C. metoda niezmienników iteracji",
+    "D. żadna z wymienionych"
+    ],
+    correct:2
+    },
+
+    {
+    cat:"W4",
+    q:"29. (W4/3) Warunek logiczny opisujący własność poprawnych wyników algorytmu nazywa się:",
+    options:[
+    "A. warunkiem rozpoczęcia",
+    "B. warunkiem początkowym",
+    "C. warunkiem końcowym",
+    "D. warunkiem stopu"
+    ],
+    correct:2
+    },
+
+    {
+    cat:"W4",
+    q:"30. (W4/3) Własność algorytmu mówiąca, że obliczenie jest skończone, nosi nazwę:",
+    options:[
+    "A. własności początkowej",
+    "B. własności określoności",
+    "C. własności końcowej",
+    "D. żadna z wymienionych"
+    ],
+    correct:3
+    },
+
+    {
+    cat:"W4",
+    q:"31. (W4/4) Metoda dowodu stopu oparta na malejącej wielkości nazywa się:",
+    options:[
+    "A. metodą liczników iteracji",
+    "B. metodą malejących wielkości",
+    "C. metodą niezmienników iteracji",
+    "D. żadna z wymienionych"
+    ],
+    correct:1
+    },
+
+    {
+    cat:"W4",
+    q:"32. (W4/4) Która trójka operacji nie zagraża własności określoności:",
+    options:[
+    "A. dodawanie, odejmowanie, mnożenie",
+    "B. mnożenie, dzielenie, pierwiastkowanie",
+    "C. pierwiastkowanie, dzielenie, logarytmowanie",
+    "D. logarytmowanie, mnożenie, dodawanie"
+    ],
+    correct:0
+    },
+
+    {
+    cat:"W4",
+    q:"33. (W4/4) Dowód częściowej poprawności metodą niezmienników polega na:",
+    options:[
+    "A. wykazaniu indukcyjnym spełniania warunku",
+    "B. sprawdzaniu warunku w kolejnych iteracjach",
+    "C. porównaniu z innym rozwiązaniem",
+    "D. żadne z powyższych nie jest do końca poprawne"
+    ],
+    correct:0
+    },
+
+    {
+    cat:"W4",
+    q:"34. (W4/5) Jeśli program zawiesił się podczas działania, nie sprawdzono własności:",
+    options:[
+    "A. częściowej poprawności",
+    "B. stopu",
+    "C. określoności",
+    "D. żadnej"
+    ],
+    correct:1
+    },
+
+    {
+    cat:"W4",
+    q:"35. (W4/5) Jeśli program policzył minimum zamiast maksimum, nie sprawdzono:",
+    options:[
+    "A. częściowej poprawności",
+    "B. stopu",
+    "C. określoności",
+    "D. żadnej"
+    ],
+    correct:0
+    },
+
+    {
+    cat:"W4",
+    q:"36. (W4/5) Jeśli wystąpił błąd pierwiastkowania liczby ujemnej, nie sprawdzono:",
+    options:[
+    "A. częściowej poprawności",
+    "B. stopu",
+    "C. określoności",
+    "D. żadnej"
+    ],
+    correct:2
+    },
+]
+
+    let currentIdx = 0;
+    let correctCount = 0;
+    let wrongCount = 0;
+    
+    // Zmienne do zliczania punktów w sekcjach
+    let scores = { w1:0, w2:0, w3:0, w4:0 };
+
+    const qText = document.getElementById("question-text");
+    const catLabel = document.getElementById("category-label");
+    const optionsContainer = document.getElementById("options-container");
+    const nextBtn = document.getElementById("next-btn");
+    const progressFill = document.getElementById("progress");
+    const counterDiv = document.getElementById("counter");
+    const correctDiv = document.getElementById("correct-count");
+    const wrongDiv = document.getElementById("wrong-count");
+
+    function renderQuestion() {
+        if(currentIdx >= questions.length) {
+            showResults();
+            return;
+        }
+
+        const q = questions[currentIdx];
+        qText.innerText = q.q;
+        catLabel.innerText = q.cat;
+        
+        counterDiv.innerText = `${currentIdx + 1} / ${questions.length}`;
+        let progressPct = (currentIdx / questions.length) * 100;
+        progressFill.style.width = `${progressPct}%`;
+
+        optionsContainer.innerHTML = "";
+        nextBtn.style.display = "none";
+
+        q.options.forEach((opt, idx) => {
+            const btn = document.createElement("button");
+            btn.className = "option-btn";
+            
+            const letter = String.fromCharCode(65 + idx); // A, B, C...
+            btn.innerHTML = `<span class="option-letter">${letter}.</span> ${opt}`;
+            
+            btn.onclick = () => checkAnswer(btn, idx, q.correct);
+            optionsContainer.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(selectedBtn, selectedIdx, correctIdx) {
+        // Zablokuj wszystkie
+        const allBtns = optionsContainer.querySelectorAll(".option-btn");
+        allBtns.forEach(btn => btn.classList.add("disabled"));
+
+        if (selectedIdx === correctIdx) {
+            selectedBtn.classList.add("correct");
+            correctCount++;
+            correctDiv.innerText = correctCount;
+            // Zliczanie do sekcji
+            if(currentIdx < 9) scores.w1++;
+            else if(currentIdx < 18) scores.w2++;
+            else if(currentIdx < 27) scores.w3++;
+            else scores.w4++;
+        } else {
+            selectedBtn.classList.add("wrong");
+            // Pokaż poprawną
+            allBtns[correctIdx].classList.add("correct");
+            // Usuń klasę disabled z poprawnej żeby było widać kolor wyraźnie
+            allBtns[correctIdx].classList.remove("disabled");
+            wrongCount++;
+            wrongDiv.innerText = wrongCount;
+        }
+
+        nextBtn.style.display = "block";
+    }
+
+    function nextQuestion() {
+        currentIdx++;
+        renderQuestion();
+    }
+
+    function showResults() {
+        document.getElementById("quiz-container").style.display = "none";
+        const resScreen = document.getElementById("results-screen");
+        resScreen.style.display = "block";
+        
+        const details = document.getElementById("results-details");
+        
+        const checkPass = (score) => score >= 3 ? "<span class='pass'>ZALICZONE</span>" : "<span class='fail'>NIEZALICZONE</span>";
+
+        details.innerHTML = `
+            <div class="result-item">Efekt W1 (Złożoność): ${scores.w1}/9 - ${checkPass(scores.w1)}</div>
+            <div class="result-item">Efekt W2 (Struktury): ${scores.w2}/9 - ${checkPass(scores.w2)}</div>
+            <div class="result-item">Efekt W3 (Algorytmy): ${scores.w3}/9 - ${checkPass(scores.w3)}</div>
+            <div class="result-item">Efekt W4 (Poprawność): ${scores.w4}/9 - ${checkPass(scores.w4)}</div>
+            <br>
+            <div class="result-item">Łączny wynik: <b>${correctCount}</b> / 36</div>
+        `;
+    }
+
+    // Start
+    renderQuestion();
+
+</script>
+
+</body>
+</html>
